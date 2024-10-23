@@ -1,9 +1,9 @@
+use std::fmt::Write as FmtWrite;
 use std::{
     fs::{File, OpenOptions},
-    io::{self, BufReader, BufWriter, Error, ErrorKind, Write},
+    io::{self, BufReader, BufWriter, Error, Write},
     path::Path,
 };
-use std::fmt::Write as FmtWrite;
 
 /// Attempt to open the file at `file_path` and return a BufReader<File>.
 pub fn open_file(file_path: &str) -> Option<BufReader<File>> {
@@ -28,18 +28,13 @@ fn open_file_for_writing(file_path: &str, truncate: bool) -> io::Result<File> {
         .open(file_path)
 }
 
-
-/// Helper function to open a file with write privelages.
+/// Helper function to open a file with append privelages.
 /// It will create the file if it does not already exist at `file_path`.
 fn open_file_for_appending(file_path: &str) -> io::Result<File> {
-    OpenOptions::new()
-        .append(true)
-        .create(true)
-        .open(file_path)
+    OpenOptions::new().append(true).create(true).open(file_path)
 }
 
-
-/// Opens a file at `file_path` for writing.
+/// Opens a file at `file_path` for appending.
 /// If the file does not exist, it will be created at `file_path`.
 /// Contents written to the returned `BufWriter<File>` will be appended to the end of the file.
 ///
@@ -51,16 +46,18 @@ pub fn open_buffered_file_appender(file_path: &str) -> Result<BufWriter<File>, E
     Ok(BufWriter::new(file))
 }
 
-/// Attempts to write `contents` to file at `file_path`.
+/// Attempts to append `contents` to file at `file_path`.
 /// Will create file at `file_path` if it does not already exist.
 /// Each call to this funciton will append a platform specific newline character.
 /// If `truncate == true`, the file will be truncated before writing `contents`.
 pub fn append_to_file(file_path: &str, contents: &str) -> Result<(), io::Error> {
     let mut file = open_file_for_appending(file_path)?;
 
+    // Hacky way to get env specific newline char after each function call.
     let mut s = String::new();
     let _ = writeln!(&mut s, "{}", contents);
 
+    // Write the string with newline char appended.
     file.write_all(s.as_bytes())?;
 
     // Make sure all bytes have been written.
@@ -74,7 +71,10 @@ pub fn append_to_file(file_path: &str, contents: &str) -> Result<(), io::Error> 
 ///
 /// # Returns
 /// A `BufWriter` for writing contents to the file.
-pub fn open_buffered_file_writer(file_path: &str, truncate: bool) -> Result<BufWriter<File>, Error> {
+pub fn open_buffered_file_writer(
+    file_path: &str,
+    truncate: bool,
+) -> Result<BufWriter<File>, Error> {
     let file = open_file_for_writing(file_path, truncate)?;
 
     Ok(BufWriter::new(file))
@@ -230,7 +230,6 @@ mod tests {
         // act
         let _ = append_to_file(file_path, first_line);
         let result = append_to_file(file_path, second_line);
-        let mut contents = String::new();
         let file = open_file(file_path).unwrap();
         let mut lines = file.lines().map(|l| l.unwrap());
 
