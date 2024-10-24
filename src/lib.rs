@@ -1,6 +1,6 @@
 use std::fmt::Write as FmtWrite;
 use std::{
-    fs::{File, OpenOptions},
+    fs::{self, File, OpenOptions},
     io::{self, BufReader, BufWriter, Error, Write},
     path::Path,
 };
@@ -103,6 +103,14 @@ pub fn create_file(file_path: &str, truncate: bool) -> io::Result<()> {
         File::create(file_path)?;
         Ok(())
     }
+}
+
+/// Delete file at `file_path` if it exists.
+pub fn delete_file<P: AsRef<Path>>(file_path: P) -> std::io::Result<()> {
+    if file_path.as_ref().exists() {
+        fs::remove_file(file_path)?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -226,6 +234,29 @@ mod tests {
 
         // Start off clean
         let _ = create_file(file_path, true);
+
+        // act
+        let _ = append_to_file(file_path, first_line);
+        let result = append_to_file(file_path, second_line);
+        let file = open_file(file_path).unwrap();
+        let mut lines = file.lines().map(|l| l.unwrap());
+
+        // assert
+        assert!(result.is_ok());
+        assert_eq!(Some(first_line.to_owned()), lines.next());
+        assert_eq!(Some(second_line.to_owned()), lines.next());
+    }
+
+    #[test]
+    fn append_to_non_existing_file_works() {
+        // arrange
+        let file_path = "assets/append_file_no_exist.txt";
+        let first_line = "line 1";
+        let second_line = "line 2";
+
+        // delete the file if it already exists
+        let _ = delete_file(file_path);
+        assert!(!Path::new(file_path).exists());
 
         // act
         let _ = append_to_file(file_path, first_line);
